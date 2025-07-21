@@ -1,6 +1,6 @@
 from fastapi import FastAPI,HTTPException,Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import APIKeyHeader
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from utils.inference import predict_new 
 from utils.config import APP_NAME,VERSION,SECRET_KEY_TOKEN,preprocessor,logistic,forest,xgb
 from utils.CostumerData import CostumerData
@@ -23,17 +23,16 @@ async def home():
     }
 
 
-api_key_header = APIKeyHeader(name="X-API-Key")
+security = HTTPBearer()
 
-async def verfiy_api_key(api_key:str=Depends(api_key_header)):
-    if api_key!= SECRET_KEY_TOKEN:
-        raise HTTPException(status_code=403,detail="you are not authorized to use API")
-    return api_key
-    
+async def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if credentials.credentials != API_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="You are not authorized to use this API")
+    return credentials.credentials
 
 
 @app.post('/predict/logistic',tags=['Models'])          
-async def predict_logistic(data: CostumerData,api_key:str=Depends(verfiy_api_key)) -> dict:
+async def predict_logistic(data: CostumerData,credentials:str=Depends(verfiy_api_key)) -> dict:
     
     try:
         result = predict_new(data=data,preprocessor=preprocessor,model = logistic)      
@@ -42,14 +41,14 @@ async def predict_logistic(data: CostumerData,api_key:str=Depends(verfiy_api_key
         raise HTTPException(status_code=500,detail=str(e))
     
 @app.post('/predict/forest',tags=['Models'])
-async def predict_forest(data: CostumerData,api_key:str=Depends(verfiy_api_key)) -> dict:
+async def predict_forest(data: CostumerData,credentials:str=Depends(verfiy_api_key)) -> dict:
     try:
         result = predict_new(data=data,preprocessor=preprocessor,model=forest)
         return result 
     except Exception as e:
         raise HTTPException(status_code=500,detail=str(e))
 @app.post('/predict/xgboost',tags=['Models'])
-async def predict_xgboost(data: CostumerData,api_key:str=Depends(verfiy_api_key)) -> dict:
+async def predict_xgboost(data: CostumerData,credentials:str=Depends(verfiy_api_key)) -> dict:
     try:
         result = predict_new(data=data,preprocessor=preprocessor,model=xgb)
         return result 
